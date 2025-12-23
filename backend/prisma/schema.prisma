@@ -1,0 +1,218 @@
+// This is your Prisma schema file for Supabase PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User Model (Base for all users)
+model User {
+  id          String   @id @default(cuid())
+  name        String
+  email       String
+  password    String
+  role        UserRole
+  designation String
+  avatar      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  teacherProfile        Teacher?
+  studentProfile        Student?
+  createdChatGroups     ChatGroup[]          @relation("ChatGroupCreator")
+  chatGroupMemberships  ChatGroupMember[]    @relation("ChatGroupMember")
+  sentMessages          Message[]            @relation("MessageSender")
+  notifications         Notification[]       @relation("NotificationUser")
+  taskComments          TaskComment[]
+
+  // Composite unique constraint: same email can exist for different roles
+  @@unique([email, role])
+  @@map("users")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  TEACHER
+  STUDENT
+}
+
+// Teacher Model
+model Teacher {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  department     String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Relations
+  assignedGroups Group[]
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("teachers")
+}
+
+// Student Model
+model Student {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  enrollmentId String   @unique
+  groupId      String?
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group        Group?   @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  
+  // Relations
+  tasks        Task[]
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("students")
+}
+
+// Project Model
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  groups      Group[]
+
+  @@map("projects")
+}
+
+// Group Model (FYP Groups)
+model Group {
+  id          String   @id @default(cuid())
+  name        String
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  teacherId   String
+  teacher     Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  
+  // Relations
+  students    Student[]
+  tasks       Task[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("groups")
+}
+
+// Task Model
+model Task {
+  id          String      @id @default(cuid())
+  name        String
+  description String
+  studentId   String
+  student     Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  groupId     String
+  group       Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  fileUrl     String?
+  fileName    String?
+  status      TaskStatus  @default(PENDING)
+  
+  // Relations
+  comments    TaskComment[]
+  
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@map("tasks")
+}
+
+enum TaskStatus {
+  PENDING
+  APPROVED
+  NEEDS_REVISION
+}
+
+// Task Comment Model
+model TaskComment {
+  id        String   @id @default(cuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("task_comments")
+}
+
+// Chat Group Model
+model ChatGroup {
+  id          String   @id @default(cuid())
+  name        String
+  createdById String
+  createdBy   User     @relation("ChatGroupCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  
+  // Relations
+  members     ChatGroupMember[]
+  messages    Message[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("chat_groups")
+}
+
+// Chat Group Member Model (Many-to-Many)
+model ChatGroupMember {
+  id        String     @id @default(cuid())
+  groupId   String
+  group     ChatGroup  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User       @relation("ChatGroupMember", fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt  DateTime   @default(now())
+
+  @@unique([groupId, userId])
+  @@map("chat_group_members")
+}
+
+// Message Model
+model Message {
+  id        String     @id @default(cuid())
+  groupId   String
+  group     ChatGroup  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  senderId  String
+  sender    User       @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  content   String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@map("messages")
+}
+
+// Notification Model
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation("NotificationUser", fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  message   String
+  groupId   String?
+  taskId    String?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@map("notifications")
+}
+
+enum NotificationType {
+  GROUP_INVITE
+  MESSAGE
+  TASK_UPDATE
+}
+
