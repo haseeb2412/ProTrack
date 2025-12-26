@@ -23,9 +23,13 @@ class ApiClient {
     const token = localStorage.getItem('protrack_token');
 
     const headers: HeadersInit = {
-      'Content-Type': 'application/json',
       ...options.headers,
     };
+
+    // Only set Content-Type to application/json if body is not FormData
+    if (!(options.body instanceof FormData)) {
+      headers['Content-Type'] = 'application/json';
+    }
 
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
@@ -59,14 +63,14 @@ class ApiClient {
   async post<T>(endpoint: string, body?: any): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
       method: 'POST',
-      body: JSON.stringify(body),
+      body: body instanceof FormData ? body : JSON.stringify(body),
     });
   }
 
   async put<T>(endpoint: string, body?: any): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
       method: 'PUT',
-      body: JSON.stringify(body),
+      body: body instanceof FormData ? body : JSON.stringify(body),
     });
   }
 
@@ -94,6 +98,25 @@ export const authApi = {
       password,
       role,
     });
+  },
+};
+
+// User API functions
+export const userApi = {
+  getProfile: async () => {
+    return apiClient.get<{ user: any }>('/users/profile');
+  },
+
+  updateProfile: async (data: { name: string; designation: string }) => {
+    return apiClient.put<{ user: any }>('/users/profile', data);
+  },
+
+  uploadAvatar: async (formData: FormData) => {
+    return apiClient.post<{ user: any }>('/users/avatar', formData);
+  },
+
+  getAllUsers: async () => {
+    return apiClient.get<{ users: any[] }>('/users/all');
   },
 };
 

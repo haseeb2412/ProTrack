@@ -22,6 +22,7 @@ const PORT = process.env.PORT || 5000;
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:8080',
+  'http://localhost:8081', // Add this for Vite dev server
   'http://localhost:3000',
   process.env.FRONTEND_URL,
 ].filter(Boolean) as string[];
@@ -39,10 +40,9 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// Health check
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'OK',

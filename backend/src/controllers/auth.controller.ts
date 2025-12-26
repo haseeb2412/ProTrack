@@ -76,7 +76,7 @@ export const signup = async (req: Request, res: Response, next: NextFunction) =>
     // Generate JWT token
     const jwtSecret = process.env.JWT_SECRET;
     if (!jwtSecret) {
-      throw new Error('JWT_SECRET is not configured');
+      throw new AppError('JWT_SECRET is not configured', 500);
     }
 
     const token = jwt.sign(
@@ -147,7 +147,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
     // Generate JWT token
     const jwtSecret = process.env.JWT_SECRET;
     if (!jwtSecret) {
-      throw new Error('JWT_SECRET is not configured');
+      throw new AppError('JWT_SECRET is not configured', 500);
     }
 
     const token = jwt.sign(

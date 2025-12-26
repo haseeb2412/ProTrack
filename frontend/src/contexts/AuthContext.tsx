@@ -8,6 +8,7 @@ interface AuthContextType {
   login: (email: string, password: string, role: UserRole) => Promise<boolean>;
   signup: (name: string, email: string, password: string, role: UserRole) => Promise<boolean>;
   logout: () => void;
+  updateUser: (updatedUser: Partial<User>) => void;
   isLoading: boolean;
 }
 
@@ -130,8 +131,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('protrack_token');
   };
 
+  const updateUser = (updatedUserData: Partial<User>) => {
+    if (user) {
+      const updatedUser = { ...user, ...updatedUserData };
+      setUser(updatedUser);
+      localStorage.setItem('protrack_user', JSON.stringify(updatedUser));
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, signup, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, signup, logout, updateUser, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
