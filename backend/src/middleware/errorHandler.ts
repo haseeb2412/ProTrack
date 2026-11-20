@@ -1,47 +1,65 @@
-import { Request, Response, NextFunction } from 'express';
+import { Prisma } from '@prisma/client';
+import { ErrorRequestHandler, NextFunction, Request, Response } from 'express';
+import { MulterError } from 'multer';
+import { ZodError } from 'zod';
 
 export class AppError extends Error {
-  public statusCode: number;
-  public isOperational: boolean;
-
-  constructor(message: string, statusCode: number = 500, isOperational: boolean = true) {
+  constructor(message: string, public readonly statusCode: number = 500) {
     super(message);
-    this.statusCode = statusCode;
-    this.isOperational = isOperational;
-
-    // Maintains proper stack trace for where our error was thrown (only available on V8)
+    this.name = 'AppError';
     Error.captureStackTrace(this, this.constructor);
   }
 }
 
-export const errorHandler = (
-  err: AppError | Error,
-  req: Request,
+// Converts application, validation, upload, and database errors to API responses.
+export const errorHandler: ErrorRequestHandler = (
+  error: Error,
+  _req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction,
 ) => {
   let statusCode = 500;
   let message = 'Internal Server Error';
+  let details: unknown;
 
-  // Check if it's our custom AppError
-  if (err instanceof AppError) {
-    statusCode = err.statusCode;
-    message = err.message;
-  } else if (err.message) {
-    message = err.message;
+  if (error instanceof AppError) {
+    statusCode = error.statusCode;
+    message = error.message;
+  } else if (error instanceof ZodError) {
+    statusCode = 400;
+    message = 'Invalid request data';
+    details = error.flatten();
+  } else if (error instanceof MulterError) {
+    statusCode = error.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
+    message = error.code === 'LIMIT_FILE_SIZE' ? 'Uploaded file exceeds the 5 MB limit' : error.message;
+  } else if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error.code === 'P2002') {
+      statusCode = 409;
+      message = 'A record with these values already exists';
+    } else if (error.code === 'P2025') {
+      statusCode = 404;
+      message = 'Requested record was not found';
+    } else if (error.code === 'P2003') {
+      statusCode = 400;
+      message = 'The request references a record that does not exist';
+    }
+  } else if (error instanceof Error && error.message === 'Only image files are allowed') {
+    statusCode = 400;
+    message = error.message;
   }
 
-  // Log error for debugging
-  if (process.env.NODE_ENV === 'development') {
-    console.error('Error:', err);
+  if (statusCode >= 500) {
+    console.error(error);
   }
 
   res.status(statusCode).json({
     success: false,
     error: {
       message,
-      ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
+      ...(details !== undefined ? { details } : {}),
+      ...(process.env.NODE_ENV === 'development' && statusCode >= 500 && error.stack
+        ? { stack: error.stack }
+        : {}),
     },
   });
 };
-

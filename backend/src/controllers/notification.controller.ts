@@ -1,40 +1,58 @@
-import { Request, Response, NextFunction } from 'express';
-import { AuthRequest } from '../middleware/auth.middleware';
+import { Response, NextFunction } from 'express';
+import prisma from '../database/prisma';
+import { AppError } from '../middleware/errorHandler';
+import { AuthRequest, getAuthenticatedUser } from '../middleware/auth.middleware';
 
-// Placeholder controllers - to be implemented
+// Lists notifications belonging to the authenticated user.
 export const getNotifications = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    // TODO: Implement get notifications logic
+    const user = getAuthenticatedUser(req);
+    const notifications = await prisma.notification.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: 'desc' },
+    });
+
     res.status(200).json({
       success: true,
-      message: 'Get notifications endpoint - to be implemented',
+      message: 'Notifications retrieved successfully',
+      data: notifications,
     });
   } catch (error) {
     next(error);
   }
 };
 
+// Marks one notification as read only when it belongs to the authenticated user.
 export const markAsRead = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    // TODO: Implement mark as read logic
-    res.status(200).json({
-      success: true,
-      message: 'Mark as read endpoint - to be implemented',
+    const user = getAuthenticatedUser(req);
+    const result = await prisma.notification.updateMany({
+      where: { id: req.params.id, userId: user.id },
+      data: { isRead: true },
     });
+    if (result.count === 0) throw new AppError('Notification not found', 404);
+
+    res.status(200).json({ success: true, message: 'Notification marked as read' });
   } catch (error) {
     next(error);
   }
 };
 
+// Marks all unread notifications belonging to the authenticated user as read.
 export const markAllAsRead = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    // TODO: Implement mark all as read logic
+    const user = getAuthenticatedUser(req);
+    const result = await prisma.notification.updateMany({
+      where: { userId: user.id, isRead: false },
+      data: { isRead: true },
+    });
+
     res.status(200).json({
       success: true,
-      message: 'Mark all as read endpoint - to be implemented',
+      message: 'Notifications marked as read',
+      data: { updatedCount: result.count },
     });
   } catch (error) {
     next(error);
   }
 };
-

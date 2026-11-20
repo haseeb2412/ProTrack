@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
 import prisma from '../database/prisma';
 import { z } from 'zod';
@@ -9,6 +9,7 @@ const updateProfileSchema = z.object({
   designation: z.string().min(1, 'Designation is required'),
 });
 
+// Returns the authenticated user's profile and role-specific details.
 export const getProfile = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id;
@@ -52,7 +53,7 @@ export const getProfile = async (req: AuthRequest, res: Response, next: NextFunc
     }
 
     // Format response based on user role
-    let profileData: any = {
+    const profileData = {
       id: user.id,
       name: user.name,
       email: user.email,
@@ -60,31 +61,35 @@ export const getProfile = async (req: AuthRequest, res: Response, next: NextFunc
       designation: user.designation,
       avatar: user.avatar,
       createdAt: user.createdAt,
-    };
-
-    if (user.role === 'TEACHER' && user.teacherProfile) {
-      profileData = {
-        ...profileData,
-        department: user.teacherProfile.department,
-      };
-    } else if (user.role === 'STUDENT' && user.studentProfile) {
-      profileData = {
-        ...profileData,
-        enrollmentId: user.studentProfile.enrollmentId,
-        group: user.studentProfile.group ? {
-          id: user.studentProfile.group.id,
-          name: user.studentProfile.group.name,
-          project: {
-            id: user.studentProfile.group.project.id,
-            name: user.studentProfile.group.project.name,
+      ...(user.role === 'TEACHER' && user.teacherProfile
+        ? {
+          teacherProfile: {
+            id: user.teacherProfile.id,
+            department: user.teacherProfile.department,
           },
-          teacher: {
-            id: user.studentProfile.group.teacher.id,
-            name: user.studentProfile.group.teacher.user.name,
-          }
-        } : null,
-      };
-    }
+        }
+        : {}),
+      ...(user.role === 'STUDENT' && user.studentProfile
+        ? {
+          studentProfile: {
+            id: user.studentProfile.id,
+            enrollmentId: user.studentProfile.enrollmentId,
+            group: user.studentProfile.group ? {
+              id: user.studentProfile.group.id,
+              name: user.studentProfile.group.name,
+              project: {
+                id: user.studentProfile.group.project.id,
+                name: user.studentProfile.group.project.name,
+              },
+              teacher: {
+                id: user.studentProfile.group.teacher.id,
+                name: user.studentProfile.group.teacher.user.name,
+              },
+            } : null,
+        },
+        }
+        : {}),
+    };
 
     res.status(200).json({
       success: true,
@@ -92,10 +97,11 @@ export const getProfile = async (req: AuthRequest, res: Response, next: NextFunc
       data: profileData,
     });
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 
+// Updates the authenticated user's name and designation.
 export const updateProfile = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id;
@@ -144,10 +150,11 @@ export const updateProfile = async (req: AuthRequest, res: Response, next: NextF
       data: updatedUser,
     });
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 
+// Lists users with role-specific details for super admins.
 export const getAllUsers = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userRole = req.user?.role;
@@ -165,11 +172,13 @@ export const getAllUsers = async (req: AuthRequest, res: Response, next: NextFun
       include: {
         teacherProfile: {
           select: {
+            id: true,
             department: true,
           }
         },
         studentProfile: {
           select: {
+            id: true,
             enrollmentId: true,
             group: {
               select: {
@@ -191,36 +200,31 @@ export const getAllUsers = async (req: AuthRequest, res: Response, next: NextFun
     });
 
     // Format the response
-    const formattedUsers = users.map(user => {
-      let userData: any = {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        designation: user.designation,
-        avatar: user.avatar,
-        createdAt: user.createdAt,
-      };
-
-      if (user.role === 'TEACHER' && user.teacherProfile) {
-        userData = {
-          ...userData,
-          department: user.teacherProfile.department,
-        };
-      } else if (user.role === 'STUDENT' && user.studentProfile) {
-        userData = {
-          ...userData,
-          enrollmentId: user.studentProfile.enrollmentId,
-          group: user.studentProfile.group ? {
-            id: user.studentProfile.group.id,
-            name: user.studentProfile.group.name,
-            projectName: user.studentProfile.group.project.name,
-          } : null,
-        };
-      }
-
-      return userData;
-    });
+    const formattedUsers = users.map((user) => ({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      designation: user.designation,
+      avatar: user.avatar,
+      createdAt: user.createdAt,
+      ...(user.teacherProfile ? { teacherProfile: user.teacherProfile } : {}),
+      ...(user.studentProfile
+        ? {
+          studentProfile: {
+            id: user.studentProfile.id,
+            enrollmentId: user.studentProfile.enrollmentId,
+            group: user.studentProfile.group
+              ? {
+                id: user.studentProfile.group.id,
+                name: user.studentProfile.group.name,
+                projectName: user.studentProfile.group.project.name,
+              }
+              : null,
+          },
+        }
+        : {}),
+    }));
 
     res.status(200).json({
       success: true,
@@ -228,10 +232,11 @@ export const getAllUsers = async (req: AuthRequest, res: Response, next: NextFun
       data: formattedUsers,
     });
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 
+// Stores an authenticated user's uploaded avatar as a data URL.
 export const uploadAvatar = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id;
@@ -277,7 +282,7 @@ export const uploadAvatar = async (req: AuthRequest, res: Response, next: NextFu
       data: updatedUser,
     });
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 

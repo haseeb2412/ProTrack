@@ -1,13 +1,14 @@
 import multer from 'multer';
 
-// Configure multer for file uploads
+// Validates and stores avatar uploads in memory.
 const storage = multer.memoryStorage(); // Store files in memory for processing
 const upload = multer({
   storage,
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit
   },
-  fileFilter: (req, file, cb) => {
+  // Rejects non-image files before they are stored.
+  fileFilter: (_req, file, cb) => {
     // Allow only image files
     if (file.mimetype.startsWith('image/')) {
       cb(null, true);
