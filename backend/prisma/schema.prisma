@@ -5,8 +5,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // User Model (Base for all users)
@@ -22,13 +23,13 @@ model User {
   updatedAt   DateTime @updatedAt
 
   // Relations
-  teacherProfile        Teacher?
-  studentProfile        Student?
-  createdChatGroups     ChatGroup[]          @relation("ChatGroupCreator")
-  chatGroupMemberships  ChatGroupMember[]    @relation("ChatGroupMember")
-  sentMessages          Message[]            @relation("MessageSender")
-  notifications         Notification[]       @relation("NotificationUser")
-  taskComments          TaskComment[]
+  teacherProfile       Teacher?
+  studentProfile       Student?
+  createdChatGroups    ChatGroup[]       @relation("ChatGroupCreator")
+  chatGroupMemberships ChatGroupMember[] @relation("ChatGroupMember")
+  sentMessages         Message[]         @relation("MessageSender")
+  notifications        Notification[]    @relation("NotificationUser")
+  taskComments         TaskComment[]
 
   // Composite unique constraint: same email can exist for different roles
   @@unique([email, role])
@@ -43,35 +44,36 @@ enum UserRole {
 
 // Teacher Model
 model Teacher {
-  id             String   @id @default(cuid())
-  userId         String   @unique
-  department     String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  department String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // Relations
   assignedGroups Group[]
-  
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("teachers")
 }
 
 // Student Model
 model Student {
-  id           String   @id @default(cuid())
-  userId       String   @unique
-  enrollmentId String   @unique
+  id           String  @id @default(cuid())
+  userId       String  @unique
+  enrollmentId String  @unique
   groupId      String?
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  group        Group?   @relation(fields: [groupId], references: [id], onDelete: SetNull)
-  
-  // Relations
-  tasks        Task[]
-  
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group        Group?  @relation(fields: [groupId], references: [id], onDelete: SetNull)
 
+  // Relations
+  tasks Task[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([groupId])
   @@map("students")
 }
 
@@ -84,49 +86,53 @@ model Project {
   updatedAt   DateTime @updatedAt
 
   // Relations
-  groups      Group[]
+  groups Group[]
 
   @@map("projects")
 }
 
 // Group Model (FYP Groups)
 model Group {
-  id          String   @id @default(cuid())
-  name        String
-  projectId   String
-  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  teacherId   String
-  teacher     Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  
-  // Relations
-  students    Student[]
-  tasks       Task[]
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String  @id @default(cuid())
+  name      String
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  teacherId String
+  teacher   Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
 
+  // Relations
+  students Student[]
+  tasks    Task[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([teacherId])
   @@map("groups")
 }
 
 // Task Model
 model Task {
-  id          String      @id @default(cuid())
+  id          String     @id @default(cuid())
   name        String
   description String
   studentId   String
-  student     Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student     Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
   groupId     String
-  group       Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  group       Group      @relation(fields: [groupId], references: [id], onDelete: Cascade)
   fileUrl     String?
   fileName    String?
-  status      TaskStatus  @default(PENDING)
-  
-  // Relations
-  comments    TaskComment[]
-  
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  status      TaskStatus @default(PENDING)
 
+  // Relations
+  comments TaskComment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([studentId])
+  @@index([groupId])
   @@map("tasks")
 }
 
@@ -147,6 +153,8 @@ model TaskComment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([taskId])
+  @@index([authorId])
   @@map("task_comments")
 }
 
@@ -156,41 +164,46 @@ model ChatGroup {
   name        String
   createdById String
   createdBy   User     @relation("ChatGroupCreator", fields: [createdById], references: [id], onDelete: Cascade)
-  
-  // Relations
-  members     ChatGroupMember[]
-  messages    Message[]
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
 
+  // Relations
+  members  ChatGroupMember[]
+  messages Message[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([createdById])
   @@map("chat_groups")
 }
 
 // Chat Group Member Model (Many-to-Many)
 model ChatGroupMember {
-  id        String     @id @default(cuid())
-  groupId   String
-  group     ChatGroup  @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User       @relation("ChatGroupMember", fields: [userId], references: [id], onDelete: Cascade)
-  joinedAt  DateTime   @default(now())
+  id       String    @id @default(cuid())
+  groupId  String
+  group    ChatGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User      @relation("ChatGroupMember", fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt DateTime  @default(now())
 
   @@unique([groupId, userId])
+  @@index([userId])
   @@map("chat_group_members")
 }
 
 // Message Model
 model Message {
-  id        String     @id @default(cuid())
-  groupId   String
-  group     ChatGroup  @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  senderId  String
-  sender    User       @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
-  content   String
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id       String    @id @default(cuid())
+  groupId  String
+  group    ChatGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  senderId String
+  sender   User      @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  content  String
 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([groupId])
+  @@index([senderId])
   @@map("messages")
 }
 
@@ -207,6 +220,7 @@ model Notification {
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
 
+  @@index([userId])
   @@map("notifications")
 }
 
@@ -215,4 +229,3 @@ enum NotificationType {
   MESSAGE
   TASK_UPDATE
 }
-
