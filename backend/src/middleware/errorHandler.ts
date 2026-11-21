@@ -4,6 +4,7 @@ import { MulterError } from 'multer';
 import { ZodError } from 'zod';
 
 export class AppError extends Error {
+  // Creates an application error with an HTTP status code.
   constructor(message: string, public readonly statusCode: number = 500) {
     super(message);
     this.name = 'AppError';

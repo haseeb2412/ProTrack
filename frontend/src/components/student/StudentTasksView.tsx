@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -7,17 +7,19 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Task } from '@/types';
-import { demoTasks } from '@/data/demoData';
+import { taskApi } from '@/lib/api';
+import { mapTask } from '@/lib/dataMappers';
 import { Plus, CheckCircle2, Clock, AlertCircle, FileText, Calendar, Upload } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
 export default function StudentTasksView() {
-  const [tasks, setTasks] = useState<Task[]>(demoTasks.filter(t => t.studentId === 's-001'));
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [taskName, setTaskName] = useState('');
   const [taskDescription, setTaskDescription] = useState('');
   const [fileName, setFileName] = useState('');
+  useEffect(() => { taskApi.list().then(({ data }) => setTasks((data ?? []).map(mapTask))).catch((error) => toast.error(error.message || 'Could not load tasks')); }, []);
 
   const getStatusIcon = (status: Task['status']) => {
     switch (status) {
@@ -36,28 +38,14 @@ export default function StudentTasksView() {
     return config[status];
   };
 
-  const handleCreateTask = () => {
+  const handleCreateTask = async () => {
     if (!taskName || !taskDescription) {
       toast.error('Please fill all required fields');
       return;
     }
-    const newTask: Task = {
-      id: `task-${Date.now()}`,
-      name: taskName,
-      description: taskDescription,
-      studentId: 's-001',
-      studentName: 'Alex Johnson',
-      groupId: 'g-001',
-      fileName: fileName || undefined,
-      status: 'pending',
-      comments: [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    setTasks(prev => [newTask, ...prev]);
-    toast.success('Task created successfully!');
-    setTaskName(''); setTaskDescription(''); setFileName('');
-    setIsDialogOpen(false);
+    try { const { data } = await taskApi.create({ name: taskName, description: taskDescription, ...(fileName ? { fileName } : {}) }); if (data) setTasks(prev => [mapTask(data), ...prev]);
+      toast.success('Task created successfully!'); setTaskName(''); setTaskDescription(''); setFileName(''); setIsDialogOpen(false);
+    } catch (error: any) { toast.error(error.message || 'Could not create task'); }
   };
 
   return (

@@ -169,7 +169,14 @@ export const getAllUsers = async (req: AuthRequest, res: Response, next: NextFun
 
     // Get all users with their role-specific profiles
     const users = await prisma.user.findMany({
-      include: {
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        designation: true,
+        avatar: true,
+        createdAt: true,
         teacherProfile: {
           select: {
             id: true,
@@ -199,7 +206,7 @@ export const getAllUsers = async (req: AuthRequest, res: Response, next: NextFun
       }
     });
 
-    // Format the response
+    // Adds only the role-specific details needed by admin screens.
     const formattedUsers = users.map((user) => ({
       id: user.id,
       name: user.name,
@@ -233,6 +240,20 @@ export const getAllUsers = async (req: AuthRequest, res: Response, next: NextFun
     });
   } catch (error) {
     return next(error);
+  }
+};
+
+// Provides authenticated users with the minimal directory fields needed to start chats.
+export const getUserDirectory = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const users = await prisma.user.findMany({
+      where: { id: { not: req.user?.id } },
+      select: { id: true, name: true, role: true, avatar: true },
+      orderBy: { name: 'asc' },
+    });
+    res.status(200).json({ success: true, message: 'User directory retrieved successfully', data: users });
+  } catch (error) {
+    next(error);
   }
 };
 

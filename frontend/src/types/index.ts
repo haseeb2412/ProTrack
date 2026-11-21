@@ -39,7 +39,7 @@ export interface Group {
   teacherId: string;
   teacherName: string;
   studentIds: string[];
-  students: Pick<Student, 'id' | 'name' | 'avatar'>[];
+  students: (Pick<Student, 'id' | 'name' | 'avatar'> & { enrollmentId?: string })[];
   createdAt: Date;
 }
 

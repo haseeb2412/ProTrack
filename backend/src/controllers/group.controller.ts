@@ -63,7 +63,8 @@ export const getGroups = async (req: AuthRequest, res: Response, next: NextFunct
 // Creates a project group and assigns its teacher and students.
 export const createGroup = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    if (req.user?.role !== 'SUPER_ADMIN') {
+    const user = getAuthenticatedUser(req);
+    if (user.role !== 'SUPER_ADMIN') {
       throw new AppError('Only super admins can create groups', 403);
     }
 
@@ -118,7 +119,8 @@ export const getGroupById = async (req: AuthRequest, res: Response, next: NextFu
 // Updates a group's details and optional member assignments.
 export const updateGroup = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    if (req.user?.role !== 'SUPER_ADMIN') {
+    const user = getAuthenticatedUser(req);
+    if (user.role !== 'SUPER_ADMIN') {
       throw new AppError('Only super admins can update groups', 403);
     }
 
@@ -173,7 +175,8 @@ export const updateGroup = async (req: AuthRequest, res: Response, next: NextFun
 // Deletes a group and its related tasks according to the Prisma relations.
 export const deleteGroup = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    if (req.user?.role !== 'SUPER_ADMIN') {
+    const user = getAuthenticatedUser(req);
+    if (user.role !== 'SUPER_ADMIN') {
       throw new AppError('Only super admins can delete groups', 403);
     }
 

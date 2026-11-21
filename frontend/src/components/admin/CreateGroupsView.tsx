@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,21 +7,34 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Group, Student } from '@/types';
-import { demoGroups, demoStudents, demoProjects, demoTeachers } from '@/data/demoData';
+import { Group } from '@/types';
+import { groupApi, userApi } from '@/lib/api';
+import { mapGroup, mapUser } from '@/lib/dataMappers';
 import { Plus, Users, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function CreateGroupsView() {
-  const [groups, setGroups] = useState<Group[]>(demoGroups);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [students, setStudents] = useState<any[]>([]);
+  const [teachers, setTeachers] = useState<any[]>([]);
+  const [projectName, setProjectName] = useState('');
+  const [projectDescription, setProjectDescription] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
-  const [selectedProject, setSelectedProject] = useState('');
   const [selectedTeacher, setSelectedTeacher] = useState('');
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
 
-  const unassignedStudents = demoStudents.filter(s => !s.groupId);
+  useEffect(() => {
+    Promise.all([groupApi.list(), userApi.getAllUsers()]).then(([groupResponse, userResponse]) => {
+      const loadedGroups = (groupResponse.data ?? []).map(mapGroup);
+      const users = userResponse.data ?? [];
+      setGroups(loadedGroups);
+      setStudents(users.filter((u: any) => u.role === 'STUDENT').map(mapUser));
+      setTeachers(users.filter((u: any) => u.role === 'TEACHER').map(mapUser));
+    }).catch((error) => toast.error(error.message || 'Could not load group data'));
+  }, []);
+  const unassignedStudents = useMemo(() => students.filter(s => !s.groupId), [students]);
 
   const toggleStudent = (studentId: string) => {
     if (selectedStudentIds.includes(studentId)) {
@@ -33,41 +46,24 @@ export default function CreateGroupsView() {
     }
   };
 
-  const handleCreateGroup = () => {
-    if (!newGroupName || !selectedProject || !selectedTeacher || selectedStudentIds.length === 0) {
+  const handleCreateGroup = async () => {
+    if (!newGroupName.trim() || !projectName.trim() || !projectDescription.trim() || !selectedTeacher || selectedStudentIds.length === 0) {
       toast.error('Please fill all required fields');
       return;
     }
-
-    const project = demoProjects.find(p => p.id === selectedProject);
-    const teacher = demoTeachers.find(t => t.id === selectedTeacher);
-    
-    if (!project || !teacher) return;
-
-    const newGroup: Group = {
-      id: `g-${Date.now()}`,
-      name: newGroupName,
-      projectId: selectedProject,
-      projectName: project.name,
-      teacherId: selectedTeacher,
-      teacherName: teacher.name,
-      studentIds: selectedStudentIds,
-      students: selectedStudentIds.map(id => {
-        const student = demoStudents.find(s => s.id === id);
-        return { id, name: student?.name || '', avatar: student?.avatar };
-      }),
-      createdAt: new Date(),
-    };
-
-    setGroups(prev => [...prev, newGroup]);
-    toast.success(`Group "${newGroupName}" created successfully!`);
-    resetForm();
-    setIsDialogOpen(false);
+    try {
+      const response = await groupApi.create({ name: newGroupName.trim(), project: { name: projectName.trim(), description: projectDescription.trim() }, teacherId: selectedTeacher, studentIds: selectedStudentIds });
+      if (response.data) setGroups(prev => [mapGroup(response.data), ...prev]);
+      setStudents(prev => prev.map(s => selectedStudentIds.includes(s.id) ? { ...s, groupId: response.data?.id } : s));
+      toast.success(`Group "${newGroupName}" created successfully!`);
+      resetForm();
+      setIsDialogOpen(false);
+    } catch (error: any) { toast.error(error.message || 'Could not create group'); }
   };
 
   const resetForm = () => {
     setNewGroupName('');
-    setSelectedProject('');
+    setProjectName(''); setProjectDescription('');
     setSelectedTeacher('');
     setSelectedStudentIds([]);
   };
@@ -108,18 +104,8 @@ export default function CreateGroupsView() {
 
               <div className="space-y-2">
                 <Label>Project</Label>
-                <Select value={selectedProject} onValueChange={setSelectedProject}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a project" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {demoProjects.map(project => (
-                      <SelectItem key={project.id} value={project.id}>
-                        {project.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <Input placeholder="Project name" value={projectName} onChange={e => setProjectName(e.target.value)} />
+                  <Input placeholder="Project description" value={projectDescription} onChange={e => setProjectDescription(e.target.value)} />
               </div>
 
               <div className="space-y-2">
@@ -129,7 +115,7 @@ export default function CreateGroupsView() {
                     <SelectValue placeholder="Select a teacher" />
                   </SelectTrigger>
                   <SelectContent>
-                    {demoTeachers.map(teacher => (
+                    {teachers.map(teacher => (
                       <SelectItem key={teacher.id} value={teacher.id}>
                         {teacher.name} - {teacher.department}
                       </SelectItem>
@@ -142,7 +128,7 @@ export default function CreateGroupsView() {
                 <Label>Students (max 4)</Label>
                 <div className="flex flex-wrap gap-2 mb-2">
                   {selectedStudentIds.map(id => {
-                    const student = demoStudents.find(s => s.id === id);
+                    const student = students.find(s => s.id === id);
                     return (
                       <Badge 
                         key={id}

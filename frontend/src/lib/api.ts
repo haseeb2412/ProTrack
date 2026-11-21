@@ -116,7 +116,34 @@ export const userApi = {
   },
 
   getAllUsers: async () => {
-    return apiClient.get<{ users: any[] }>('/users/all');
+    return apiClient.get<any[]>('/users/all');
   },
+  getDirectory: async () => apiClient.get<any[]>('/users/directory'),
+};
+
+// Domain endpoints return the database records inside the standard `data` envelope.
+export const groupApi = {
+  list: () => apiClient.get<any[]>('/groups'),
+  create: (data: { name: string; project: { name: string; description: string }; teacherId: string; studentIds: string[] }) => apiClient.post<any>('/groups', data),
+};
+
+export const taskApi = {
+  list: () => apiClient.get<any[]>('/tasks'),
+  create: (data: { name: string; description: string; fileName?: string }) => apiClient.post<any>('/tasks', data),
+  update: (id: string, data: { status?: 'PENDING' | 'APPROVED' | 'NEEDS_REVISION' }) => apiClient.put<any>(`/tasks/${id}`, data),
+  addComment: (id: string, content: string) => apiClient.post<any>(`/tasks/${id}/comments`, { content }),
+};
+
+export const notificationApi = {
+  list: () => apiClient.get<any[]>('/notifications'),
+  markRead: (id: string) => apiClient.put(`/notifications/${id}/read`),
+  markAllRead: () => apiClient.put('/notifications/read-all'),
+};
+
+export const messagingApi = {
+  listGroups: () => apiClient.get<any[]>('/messages/groups'),
+  createGroup: (name: string, memberIds: string[]) => apiClient.post<any>('/messages/groups', { name, memberIds }),
+  listMessages: (groupId: string) => apiClient.get<any[]>(`/messages/groups/${groupId}/messages`),
+  sendMessage: (groupId: string, content: string) => apiClient.post<any>(`/messages/groups/${groupId}/messages`, { content }),
 };
 

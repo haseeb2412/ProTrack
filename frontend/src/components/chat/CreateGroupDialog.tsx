@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { toast } from 'sonner';
 import { X, Users } from 'lucide-react';
+import { userApi } from '@/lib/api';
 
 export default function CreateGroupDialog({ onClose }: { onClose: () => void }) {
   const [groupName, setGroupName] = useState('');
@@ -26,12 +27,7 @@ export default function CreateGroupDialog({ onClose }: { onClose: () => void }) 
   const { user } = useAuth();
 
   useEffect(() => {
-    // Get all users (students + teachers) from localStorage
-    const usersStr = localStorage.getItem('protrack_users');
-    const users = usersStr ? JSON.parse(usersStr) : [];
-    // Filter out current user
-    const otherUsers = users.filter((u: any) => u.id !== user?.id);
-    setAllUsers(otherUsers);
+    userApi.getDirectory().then(({ data }) => setAllUsers(data ?? [])).catch((error) => toast.error(error.message || 'Could not load users'));
   }, [user]);
 
   const toggleMember = (userId: string) => {
@@ -42,7 +38,7 @@ export default function CreateGroupDialog({ onClose }: { onClose: () => void }) 
     );
   };
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!groupName.trim()) {
       toast.error('Please enter a group name');
       return;
@@ -53,7 +49,7 @@ export default function CreateGroupDialog({ onClose }: { onClose: () => void }) 
       return;
     }
 
-    const newGroup = createGroup(groupName.trim(), selectedMemberIds);
+    const newGroup = await createGroup(groupName.trim(), selectedMemberIds);
     if (newGroup) {
       toast.success(`Group "${groupName}" created successfully!`);
       onClose();
@@ -135,7 +131,7 @@ export default function CreateGroupDialog({ onClose }: { onClose: () => void }) 
                       <div className="flex-1">
                         <p className="text-sm font-medium">{person.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {person.role === 'student' ? 'Student' : person.role === 'teacher' ? 'Teacher' : 'Admin'} • {person.email}
+                          {String(person.role).toUpperCase() === 'STUDENT' ? 'Student' : String(person.role).toUpperCase() === 'TEACHER' ? 'Teacher' : 'Admin'}
                         </p>
                       </div>
                     </div>

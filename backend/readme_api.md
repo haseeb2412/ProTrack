@@ -49,6 +49,7 @@ The API base URL is `http://localhost:5000`. Use `npm run prisma:push` instead o
 - Signup roles in the request are lowercase: `student`, `teacher`, or `super_admin`. Signup creates role-specific teacher/student profiles automatically. Super-admin signup also requires `signupKey` to match the private `SUPER_ADMIN_SIGNUP_KEY` environment variable.
 - Group `teacherId` and `studentIds` are **User IDs** returned by signup or login, not profile IDs.
 - Group creation creates a new project from the nested `project` object and assigns the selected students. A student can belong to one group at a time; a group can contain up to four students.
+- Deleting a group cascades to its tasks; keep the delete request for last when testing.
 - Students create task submissions for their own assigned group. Teachers can change task status and add comments only for their assigned groups.
 - `fileUrl` and `fileName` on tasks are optional text fields; task-file storage is not implemented. Avatar upload is supported as a multipart image.
 - Group create/update/delete are super-admin only. Group and task reads are filtered by the authenticated user's role.
@@ -72,7 +73,9 @@ curl.exe -X POST "http://localhost:5000/api/auth/signup" -H "Content-Type: appli
 ```
 
 ```powershell
+curl.exe -X POST "http://localhost:5000/api/auth/login" -H "Content-Type: application/json" -d '{"email":"admin@example.com","password":"ChangeMe123!","role":"super_admin"}'
 curl.exe -X POST "http://localhost:5000/api/auth/login" -H "Content-Type: application/json" -d '{"email":"teacher@example.com","password":"ChangeMe123!","role":"teacher"}'
+curl.exe -X POST "http://localhost:5000/api/auth/login" -H "Content-Type: application/json" -d '{"email":"student@example.com","password":"ChangeMe123!","role":"student"}'
 ```
 
 ### Users
@@ -82,7 +85,10 @@ curl.exe "http://localhost:5000/api/users/profile" -H "Authorization: Bearer YOU
 curl.exe -X PUT "http://localhost:5000/api/users/profile" -H "Authorization: Bearer YOUR_TOKEN" -H "Content-Type: application/json" -d '{"name":"Teacher One Updated","designation":"Professor"}'
 curl.exe "http://localhost:5000/api/users/all" -H "Authorization: Bearer YOUR_SUPER_ADMIN_TOKEN"
 curl.exe -X POST "http://localhost:5000/api/users/avatar" -H "Authorization: Bearer YOUR_TOKEN" -F "avatar=@C:\path\to\avatar.png"
+curl.exe "http://localhost:5000/api/users/directory" -H "Authorization: Bearer YOUR_TOKEN"
 ```
+
+`/api/users/directory` returns the minimal user list (ID, name, role, and avatar) for authenticated chat member selection. `/api/users/all` remains super-admin only and returns role profile details.
 
 ### Groups
 

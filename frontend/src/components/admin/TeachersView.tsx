@@ -1,16 +1,27 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Teacher } from '@/types';
-import { demoTeachers } from '@/data/demoData';
+import { groupApi, userApi } from '@/lib/api';
+import { mapUser } from '@/lib/dataMappers';
 import { Check, Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function TeachersView() {
-  const [teachers] = useState<Teacher[]>(demoTeachers);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [selectedTeachers, setSelectedTeachers] = useState<string[]>([]);
+  useEffect(() => {
+    Promise.all([userApi.getAllUsers(), groupApi.list()]).then(([usersResponse, groupsResponse]) => {
+      const assignedGroups = new Map<string, string[]>();
+      (groupsResponse.data ?? []).forEach((group: any) => {
+        const userId = group.teacher?.user?.id;
+        if (userId) assignedGroups.set(userId, [...(assignedGroups.get(userId) ?? []), group.id]);
+      });
+      setTeachers((usersResponse.data ?? []).filter((u: any) => u.role === 'TEACHER').map((u: any) => ({ ...mapUser(u), assignedGroups: assignedGroups.get(u.id) ?? [] })) as Teacher[]);
+    }).catch((error) => toast.error(error.message || 'Could not load teachers'));
+  }, []);
 
   const toggleTeacherSelection = (teacherId: string) => {
     setSelectedTeachers(prev => 
@@ -108,7 +119,7 @@ export default function TeachersView() {
                     <p className="text-sm text-muted-foreground">{teacher.designation}</p>
                     <p className="text-xs text-muted-foreground mt-1">{teacher.department}</p>
                     <Badge variant="secondary" className="mt-2 text-xs">
-                      {teacher.assignedGroups.length} Groups
+                      {teacher.assignedGroups?.length ?? 0} Groups
                     </Badge>
                   </div>
                 </div>

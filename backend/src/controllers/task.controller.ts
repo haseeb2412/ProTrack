@@ -61,12 +61,13 @@ export const getTasks = async (req: AuthRequest, res: Response, next: NextFuncti
 // Creates a task submission for the authenticated student's group.
 export const createTask = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    if (req.user?.role !== 'STUDENT') {
+    const user = getAuthenticatedUser(req);
+    if (user.role !== 'STUDENT') {
       throw new AppError('Only students can create task submissions', 403);
     }
 
     const input = createTaskSchema.parse(req.body);
-    const student = await prisma.student.findUnique({ where: { userId: req.user.id } });
+    const student = await prisma.student.findUnique({ where: { userId: user.id } });
     if (!student?.groupId) {
       throw new AppError('You must belong to a group before creating a task', 400);
     }
@@ -165,12 +166,13 @@ export const updateTask = async (req: AuthRequest, res: Response, next: NextFunc
 // Deletes a task owned by the student or any task as a super admin.
 export const deleteTask = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    const user = getAuthenticatedUser(req);
     const task = await prisma.task.findFirst({
       where: { id: req.params.id, ...getTaskAccessFilter(req) },
       include: { student: { select: { userId: true } } },
     });
     if (!task) throw new AppError('Task not found', 404);
-    if (req.user?.role !== 'SUPER_ADMIN' && task.student.userId !== req.user?.id) {
+    if (user.role !== 'SUPER_ADMIN' && task.student.userId !== user.id) {
       throw new AppError('Only the task owner or a super admin can delete this task', 403);
     }
 

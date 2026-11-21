@@ -12,6 +12,7 @@ router.get('/profile', userController.getProfile);
 router.put('/profile', userController.updateProfile);
 router.post('/avatar', upload.single('avatar'), userController.uploadAvatar);
 router.get('/all', userController.getAllUsers);
+router.get('/directory', userController.getUserDirectory);
 
 export default router;
 

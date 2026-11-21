@@ -1,23 +1,28 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Task } from '@/types';
-import { demoTasks, demoGroups } from '@/data/demoData';
+import { groupApi, taskApi } from '@/lib/api';
+import { mapGroup, mapTask } from '@/lib/dataMappers';
 import { CheckCircle2, Clock, AlertCircle, FileText, MessageSquare, Calendar, Check, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
 export default function TaskReviewView() {
-  const [tasks, setTasks] = useState<Task[]>(demoTasks);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [groups, setGroups] = useState<any[]>([]);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [newComment, setNewComment] = useState('');
 
-  // Filter tasks from groups assigned to this teacher
-  const teacherGroupIds = demoGroups.filter(g => g.teacherId === 't-001').map(g => g.id);
-  const teacherTasks = tasks.filter(t => teacherGroupIds.includes(t.groupId));
+  useEffect(() => {
+    Promise.all([taskApi.list(), groupApi.list()]).then(([t, g]) => {
+      setTasks((t.data ?? []).map(mapTask)); setGroups((g.data ?? []).map(mapGroup));
+    }).catch((error) => toast.error(error.message || 'Could not load tasks'));
+  }, []);
+  const teacherTasks = tasks;
 
   const getStatusIcon = (status: Task['status']) => {
     switch (status) {
@@ -39,78 +44,36 @@ export default function TaskReviewView() {
     return config[status];
   };
 
-  const handleApprove = (taskId: string) => {
-    setTasks(prev => prev.map(t => 
-      t.id === taskId ? { ...t, status: 'approved' as const, updatedAt: new Date() } : t
-    ));
-    toast.success('Task approved!');
-    setSelectedTask(null);
+  const handleApprove = async (taskId: string) => {
+    try { const { data } = await taskApi.update(taskId, { status: 'APPROVED' }); if (data) setTasks(prev => prev.map(t => t.id === taskId ? mapTask(data) : t)); toast.success('Task approved!'); setSelectedTask(null); }
+    catch (error: any) { toast.error(error.message || 'Could not approve task'); }
   };
 
-  const handleRequestRevision = (taskId: string) => {
+  const handleRequestRevision = async (taskId: string) => {
     if (!newComment.trim()) {
       toast.error('Please add a comment explaining what needs revision');
       return;
     }
     
-    setTasks(prev => prev.map(t => 
-      t.id === taskId ? { 
-        ...t, 
-        status: 'needs_revision' as const, 
-        updatedAt: new Date(),
-        comments: [...t.comments, {
-          id: `c-${Date.now()}`,
-          taskId: t.id,
-          authorId: 't-001',
-          authorName: 'Prof. Sarah Wilson',
-          authorRole: 'teacher' as const,
-          content: newComment,
-          createdAt: new Date(),
-        }]
-      } : t
-    ));
+    try { await taskApi.update(taskId, { status: 'NEEDS_REVISION' }); await taskApi.addComment(taskId, newComment); const response = await taskApi.list(); setTasks((response.data ?? []).map(mapTask)); }
+    catch (error: any) { toast.error(error.message || 'Could not request revision'); return; }
     toast.success('Revision requested with feedback');
     setNewComment('');
     setSelectedTask(null);
   };
 
-  const handleAddComment = () => {
+  const handleAddComment = async () => {
     if (!newComment.trim() || !selectedTask) return;
     
-    setTasks(prev => prev.map(t => 
-      t.id === selectedTask.id ? { 
-        ...t, 
-        comments: [...t.comments, {
-          id: `c-${Date.now()}`,
-          taskId: t.id,
-          authorId: 't-001',
-          authorName: 'Prof. Sarah Wilson',
-          authorRole: 'teacher' as const,
-          content: newComment,
-          createdAt: new Date(),
-        }]
-      } : t
-    ));
-    
-    setSelectedTask(prev => prev ? {
-      ...prev,
-      comments: [...prev.comments, {
-        id: `c-${Date.now()}`,
-        taskId: prev.id,
-        authorId: 't-001',
-        authorName: 'Prof. Sarah Wilson',
-        authorRole: 'teacher' as const,
-        content: newComment,
-        createdAt: new Date(),
-      }]
-    } : null);
+    try { await taskApi.addComment(selectedTask.id, newComment); const response = await taskApi.list(); const mapped = (response.data ?? []).map(mapTask); setTasks(mapped); setSelectedTask(mapped.find(t => t.id === selectedTask.id) ?? null); }
+    catch (error: any) { toast.error(error.message || 'Could not add comment'); return; }
     
     toast.success('Comment added');
     setNewComment('');
   };
 
   const getGroupName = (groupId: string) => {
-    return demoGroups.find(g => g.id === groupId)?.name || 'Unknown Group';
+    return groups.find(g => g.id === groupId)?.name || 'Unknown Group';
   };
 
   return (

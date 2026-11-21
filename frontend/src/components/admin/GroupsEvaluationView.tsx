@@ -1,16 +1,23 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Group, Task } from '@/types';
-import { demoGroups, demoTasks } from '@/data/demoData';
+import { groupApi, taskApi } from '@/lib/api';
+import { mapGroup, mapTask } from '@/lib/dataMappers';
+import { toast } from 'sonner';
 import { CheckCircle2, Clock, AlertCircle, FileText, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function GroupsEvaluationView() {
-  const [groups] = useState<Group[]>(demoGroups);
-  const [tasks] = useState<Task[]>(demoTasks);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  useEffect(() => {
+    Promise.all([groupApi.list(), taskApi.list()]).then(([g, t]) => {
+      setGroups((g.data ?? []).map(mapGroup)); setTasks((t.data ?? []).map(mapTask));
+    }).catch((error) => toast.error(error.message || 'Could not load evaluations'));
+  }, []);
 
   const getGroupTasks = (groupId: string) => {
     return tasks.filter(t => t.groupId === groupId);

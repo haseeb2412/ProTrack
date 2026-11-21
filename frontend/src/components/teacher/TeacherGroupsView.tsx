@@ -1,22 +1,25 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Group, Task, Student } from '@/types';
-import { demoGroups, demoTasks, demoStudents } from '@/data/demoData';
-import { useAuth } from '@/contexts/AuthContext';
+import { Group, Task } from '@/types';
+import { groupApi, taskApi } from '@/lib/api';
+import { mapGroup, mapTask } from '@/lib/dataMappers';
+import { toast } from 'sonner';
 import { Users, ChevronRight, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 
 export default function TeacherGroupsView() {
-  const { user } = useAuth();
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
-  
-  // Filter groups assigned to this teacher (demo: show first teacher's groups)
-  const teacherGroups = demoGroups.filter(g => g.teacherId === 't-001');
-  const tasks = demoTasks;
+  const [teacherGroups, setTeacherGroups] = useState<Group[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  useEffect(() => {
+    Promise.all([groupApi.list(), taskApi.list()]).then(([g, t]) => {
+      setTeacherGroups((g.data ?? []).map(mapGroup)); setTasks((t.data ?? []).map(mapTask));
+    }).catch((error) => toast.error(error.message || 'Could not load groups'));
+  }, []);
 
   const getGroupTasks = (groupId: string) => {
     return tasks.filter(t => t.groupId === groupId);
@@ -153,8 +156,6 @@ export default function TeacherGroupsView() {
                   <h3 className="font-medium text-foreground">Student Performance</h3>
                   {selectedGroup.students.map(student => {
                     const stats = getStudentStats(student.id, selectedGroup.id);
-                    const fullStudent = demoStudents.find(s => s.id === student.id);
-                    
                     return (
                       <Card key={student.id} className="bg-secondary/30">
                         <CardContent className="p-4">
@@ -168,7 +169,7 @@ export default function TeacherGroupsView() {
                             <div className="flex-1">
                               <h4 className="font-medium">{student.name}</h4>
                               <p className="text-sm text-muted-foreground">
-                                {fullStudent?.enrollmentId}
+                                {student.enrollmentId}
                               </p>
                             </div>
                             <div className="flex items-center gap-3 text-sm">
