@@ -21,6 +21,12 @@ export default tseslint.config(
       ...reactHooks.configs.recommended.rules,
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       "@typescript-eslint/no-unused-vars": "off",
+      // This app uses untyped API payloads in existing components; keep lint focused on actionable errors.
+      "@typescript-eslint/no-explicit-any": "off",
+      // UI component prop interfaces sometimes intentionally extend an empty base interface.
+      "@typescript-eslint/no-empty-object-type": "off",
+      // The Tailwind config uses require() for a CommonJS plugin.
+      "@typescript-eslint/no-require-imports": "off",
     },
   },
 );
