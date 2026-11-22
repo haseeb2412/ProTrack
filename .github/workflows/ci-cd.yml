@@ -32,7 +32,8 @@ jobs:
 
       # Install exactly the dependencies recorded in the lockfile.
       - name: Install backend dependencies
-        run: npm ci
+        # Skip npm's optional audit/funding network calls and show install scripts in the job log.
+        run: npm ci --no-audit --no-fund --foreground-scripts
 
       # Generate Prisma Client so TypeScript can resolve the database types.
       - name: Generate Prisma Client
@@ -64,7 +65,8 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install frontend dependencies
-        run: npm ci
+        # Skip npm's optional audit/funding network calls and show install scripts in the job log.
+        run: npm ci --no-audit --no-fund --foreground-scripts
 
       - name: Lint frontend
         run: npm run lint
