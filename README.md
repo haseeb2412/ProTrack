@@ -203,3 +203,17 @@ ProTrack is a practical academic project management platform aiming to simplify 
 ## License
 
 This project is currently for academic / development use and may be updated according to project requirements.
+
+
+
+
+
+
+<!-- remaining test cases -->
+
+
+Users — 8: profile read/update, invalid update, admin-only user list, directory excludes current user, avatar missing/valid/oversized file.
+Groups — 10: role-filtered reads, admin create/update/delete, non-admin denial, invalid data, missing users, already-assigned students, access to another user’s group.
+Tasks — 12: role-filtered reads, student create/edit/delete, no-group rejection, teacher status review/comment, forbidden edits, missing task, invalid status/content.
+Chat — 7: create/list groups, unknown member, member-only message read/send, invalid message, notification creation.
+Notifications — 5: list own notifications, mark one read, reject another user’s notification, mark all read.
