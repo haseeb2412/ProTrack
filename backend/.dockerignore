@@ -1,0 +1,17 @@
+# Keep local dependencies and generated output out of the image build context.
+node_modules
+dist
+coverage
+tests
+
+# Never send local secrets to Docker.
+.env
+.env.*
+!.env.example
+
+# Ignore repository metadata, editor files, and logs.
+.git
+.vscode
+.idea
+*.log
+npm-debug.log*

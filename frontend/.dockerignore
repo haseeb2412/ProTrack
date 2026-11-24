@@ -1,0 +1,15 @@
+# Dependencies and build output are created inside the Docker build.
+node_modules
+dist
+build
+coverage
+
+# Keep local environment values and repository/editor files out of Docker.
+.env
+.env.*
+!.env.example
+.git
+.vscode
+.idea
+*.log
+npm-debug.log*
