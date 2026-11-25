@@ -2,6 +2,11 @@ FROM node:20-bookworm-slim AS build
 
 WORKDIR /app
 
+# Install OpenSSL before Prisma Client generation so Prisma selects the Debian 12 engine.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends openssl \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install from the committed lockfile for repeatable builds.
 COPY package*.json ./
 RUN npm ci
@@ -24,6 +29,11 @@ FROM node:20-bookworm-slim AS runtime
 
 WORKDIR /app
 ENV NODE_ENV=production
+
+# Prisma's query engine needs the matching OpenSSL runtime library.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends openssl \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy only the compiled API, Prisma schema, and pruned runtime dependencies.
 COPY --from=build /app/node_modules ./node_modules
